@@ -1,0 +1,26 @@
+services:
+  avito-merch-app:
+    container_name: avito-merch
+    image: avito
+    build: .
+    environment:
+      POSTGRES_URL: ${POSTGRES_URL}
+      secret_token: ${secret_token}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - avito-merch-db
+  avito-merch-db:
+    container_name: avito-merch-db
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
