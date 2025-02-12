@@ -25,7 +25,6 @@ func MigrateUP() {
 		from_user_id INT NOT NULL,
 		to_user_id INT NOT NULL,
 		amount INT NOT NULL,
-		createdAt TIMESTAMP,
 
 		CONSTRAINT from_fk FOREIGN KEY (from_user_id) REFERENCES users(id),
 		CONSTRAINT to_fk FOREIGN KEY (to_user_id) REFERENCES users(id)

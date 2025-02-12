@@ -19,8 +19,9 @@ import (
 )
 
 func SetupRoutes() {
+	http.HandleFunc("GET /api/info", middleware.AuthMiddleware(GetAllInfoHandler))
 	http.HandleFunc("POST /api/auth", LoginHandler)
-	http.HandleFunc("POST /api/buy/{item}", middleware.AuthMiddleware(BuyHandler))
+	http.HandleFunc("GET /api/buy/{item}", middleware.AuthMiddleware(BuyHandler))
 	http.HandleFunc("POST /api/sendCoin", middleware.AuthMiddleware(SendCointHandler))
 
 }
@@ -83,12 +84,74 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllInfoHandler(w http.ResponseWriter, r *http.Request) {
+	usernameCookie, _ := r.Cookie("username")
+	var user models.User
+	user.Username = usernameCookie.Value
+	err := database.DB.QueryRow("SELECT id, coins FROM users WHERE username=$1", user.Username).Scan(&user.ID, &user.Coins)
+	if err != nil {
+		return
+	}
 
+	var allUserInfo models.UserInfoResponse
+	allUserInfo.Coins = user.Coins
+
+	rows, err := database.DB.Query(`SELECT merch.title, COUNT(merch_id)
+									FROM users_merch 
+									JOIN merch ON merch_id = merch.id
+									WHERE user_id = $1
+									GROUP BY merch.title`, user.ID)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var userInventoryItem models.MerchInventoryItem
+
+		rows.Scan(&userInventoryItem.Type, &userInventoryItem.Quantity)
+
+		allUserInfo.Inventory = append(allUserInfo.Inventory, userInventoryItem)
+	}
+
+	var allTransactions models.Transaction
+	rows, err = database.DB.Query(`SELECT users.username, SUM(amount) FROM transactions
+								   JOIN users ON from_user_id = users.id WHERE to_user_id = $1
+								   GROUP BY users.username`, user.ID)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var receiveTransaction models.Receive
+
+		rows.Scan(&receiveTransaction.FromUser, &receiveTransaction.Amount)
+
+		allTransactions.Received = append(allTransactions.Received, receiveTransaction)
+	}
+
+	rows, err = database.DB.Query(`SELECT users.username, SUM(amount) FROM transactions
+								   JOIN users ON to_user_id = users.id WHERE from_user_id = $1
+								   GROUP BY users.username`, user.ID)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var sentTransaction models.Sent
+
+		rows.Scan(&sentTransaction.ToUser, &sentTransaction.Amount)
+
+		allTransactions.Sent = append(allTransactions.Sent, sentTransaction)
+	}
+
+	allUserInfo.CoinHistory = allTransactions
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(allUserInfo)
 }
 
 func BuyHandler(w http.ResponseWriter, r *http.Request) {
 	item := strings.TrimPrefix(r.URL.Path, "/api/buy/")
-	fmt.Println(item)
 
 	if item == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -96,15 +159,15 @@ func BuyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	usernameCookie, _ := r.Cookie("username")
-	username := usernameCookie.Value
-	var userID int
-	var userCoins int
-	database.DB.QueryRow("SELECT id, coins FROM users WHERE username=$1", username).Scan(&userID, &userCoins)
+
+	var user models.User
+	user.Username = usernameCookie.Value
+	database.DB.QueryRow("SELECT id, coins FROM users WHERE username=$1", user.Username).Scan(&user.ID, &user.Coins)
 
 	var merch models.Merch
 	database.DB.QueryRow("SELECT id, title, price FROM merch WHERE title=$1", item).Scan(&merch.ID, &merch.Title, &merch.Price)
 
-	if userCoins < merch.Price {
+	if user.Coins < merch.Price {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -114,19 +177,20 @@ func BuyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("UPDATE users SET coins = coins - $1 WHERE id = $2", merch.Price, userID)
+	_, err = tx.Exec("UPDATE users SET coins = coins - $1 WHERE id = $2", merch.Price, user.ID)
 	if err != nil {
 		tx.Rollback()
 		return
 	}
 
-	_, err = tx.Exec("INSERT INTO users_merch(user_id, merch_id) VALUES($1, $2)", userID, merch.ID)
+	_, err = tx.Exec("INSERT INTO users_merch(user_id, merch_id) VALUES($1, $2)", user.ID, merch.ID)
 	if err != nil {
 		tx.Rollback()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
+		tx.Rollback()
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -135,5 +199,70 @@ func BuyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SendCointHandler(w http.ResponseWriter, r *http.Request) {
+	sendCoinRequest := struct {
+		ToUser string `json:"toUser"`
+		Amount int    `json:"amount"`
+	}{}
+	json.NewDecoder(r.Body).Decode(&sendCoinRequest)
+	if sendCoinRequest.ToUser == "" || sendCoinRequest.Amount <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
+	var toUserID int
+	err := database.DB.QueryRow("SELECT id FROM users WHERE username=$1", sendCoinRequest.ToUser).Scan(&toUserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return
+		}
+		return
+	}
+
+	usernameCookie, _ := r.Cookie("username")
+
+	var user models.User
+	user.Username = usernameCookie.Value
+	err = database.DB.QueryRow("SELECT id, coins FROM users WHERE username=$1", user.Username).Scan(&user.ID, &user.Coins)
+	if err != nil {
+		return
+	}
+
+	if user.Coins < sendCoinRequest.Amount {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return
+	}
+
+	_, err = tx.Exec("UPDATE users SET coins = coins - $1 WHERE id = $2", sendCoinRequest.Amount, user.ID)
+	if err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	_, err = tx.Exec("UPDATE users SET coins = coins + $1 WHERE id = $2", sendCoinRequest.Amount, toUserID)
+	if err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	_, err = tx.Exec("INSERT INTO transactions(from_user_id, to_user_id, amount) VALUES($1, $2, $3)", user.ID, toUserID, sendCoinRequest.Amount)
+	if err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

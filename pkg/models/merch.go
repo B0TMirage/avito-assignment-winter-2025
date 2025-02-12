@@ -5,3 +5,8 @@ type Merch struct {
 	Title string `json:"title"`
 	Price int    `json:"price"`
 }
+
+type MerchInventoryItem struct {
+	Type     string `json:"type"`
+	Quantity int    `json:"quantity"`
+}
