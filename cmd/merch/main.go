@@ -13,8 +13,8 @@ func main() {
 	defer database.DB.Close()
 	database.MigrateUP()
 
-	routes.SetupRoutes()
+	mux := routes.SetupRouter()
 
 	fmt.Println("Server started.")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8080", mux)
 }
