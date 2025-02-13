@@ -1,0 +1,23 @@
+run:
+  timeout: 10m
+
+linters:
+  disable-all: true
+  enable:
+    - gofumpt
+    - unused
+    - govet
+    - errcheck
+  exclusions:
+    paths:
+      - pkg/database/migrations.go
+      - pkg/errttp
+
+issues:
+  exclude:
+    - "Error return value of `tx.Rollback` is not checked"
+    - "Error return value of `rows.Scan` is not checked"
+    - "Error return value of `http.ListenAndServe` is not checked"
+
+output:
+  formats: colored-line-number

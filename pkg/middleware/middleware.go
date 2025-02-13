@@ -2,13 +2,12 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/B0TMirage/avito-assignment-winter-2025.git/pkg/errttp"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/B0TMirage/avito-assignment-winter-2025.git/pkg/jwtutils"
 )
 
 type contextKey string
@@ -24,22 +23,14 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("secret_token")), nil
-		})
+		claims, err := jwtutils.ValidateJWT(tokenString, os.Getenv("secret_token"))
 		if err != nil {
 			errttp.SendError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			username := claims["username"].(string)
-			ctx := context.WithValue(r.Context(), UsernameKey, username)
-			fmt.Println(ctx)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		} else {
-			errttp.SendError(w, http.StatusUnauthorized, "invalid token")
-			return
-		}
+		username := claims["username"].(string)
+		ctx := context.WithValue(r.Context(), UsernameKey, username)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
