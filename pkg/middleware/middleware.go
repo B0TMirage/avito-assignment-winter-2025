@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/B0TMirage/avito-assignment-winter-2025.git/pkg/errttp"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -19,9 +19,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
 		if tokenString == "" || !strings.HasPrefix(tokenString, "Bearer ") {
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"errors": "invalid token"})
+			errttp.SendError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 
@@ -30,9 +28,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return []byte(os.Getenv("secret_token")), nil
 		})
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"errors": "invalid token"})
+			errttp.SendError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 
@@ -42,9 +38,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			fmt.Println(ctx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"errors": "invalid token"})
+			errttp.SendError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 	}
