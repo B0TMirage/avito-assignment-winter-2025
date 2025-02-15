@@ -126,13 +126,13 @@ func TestSendCoinIncorrectUser(t *testing.T) {
 
 	var userID int
 	database.DB.QueryRow("SELECT id FROM users WHERE username = 'testuser'").Scan(&userID)
-	database.DB.Exec("UPDATE users SET coins = 12000 WHERE id = $1", userID)
+	database.DB.Exec("UPDATE users SET coins = 15 WHERE id = $1", userID)
 
 	client := &http.Client{}
 
-	reqData, err := json.Marshal(map[string]interface{}{"toUser": "toMe", "amount": 10000})
+	reqData, err := json.Marshal(map[string]interface{}{"toUser": "toMe", "amount": 10})
 	if err != nil {
-		t.Error("error marshaling JSON:", err)
+		t.Fatal("error marshaling JSON:", err)
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqData))
@@ -154,7 +154,7 @@ func TestSendCoinIncorrectUser(t *testing.T) {
 	var userCoins int
 	database.DB.QueryRow("SELECT coins FROM users WHERE id = $1", userID).Scan(&userCoins)
 
-	if userCoins != 12000 {
+	if userCoins != 15 {
 		t.Fatal("money transaction error")
 	}
 }

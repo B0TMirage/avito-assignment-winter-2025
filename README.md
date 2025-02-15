@@ -66,6 +66,11 @@ POSTGRES_URL= postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_CONTAI
 docker compose up -d --build
 ```
 
+4. Для запуска тестов необходимы запущенные контейнеры с программой и базой данных. В файле [buy_test.go](/pkg/handlers/buy_test.go) заменить переменную localDBURL на вашу ссылку для подключения к базе данных. Далее ввести команду:
+```sh
+go test ./...
+```
+
 ## **Результаты нагрузочного тестирования**
 
 Более подробные результаты находятся в папке [forReadme.](/forReadme/load_testing.html)
