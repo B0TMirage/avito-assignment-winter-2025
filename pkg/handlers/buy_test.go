@@ -14,7 +14,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var localDBURL string = "your database connection link"
+var localDBURL string = "your database connect link"
 
 func TestBuyHandler(t *testing.T) {
 	token, err := authTestUser()

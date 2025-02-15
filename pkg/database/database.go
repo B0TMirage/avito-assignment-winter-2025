@@ -17,6 +17,11 @@ func Connect() {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	DB.SetMaxOpenConns(100)
+	DB.SetMaxIdleConns(50)
+	DB.SetConnMaxLifetime(0)
+
 	if err = DB.Ping(); err != nil {
 		fmt.Println(err)
 	}
