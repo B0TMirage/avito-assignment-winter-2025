@@ -8,6 +8,10 @@ linters:
     - unused
     - govet
     - errcheck
+    - gocyclo
+    - ineffassign
+    - golint
+    - staticcheck
   exclusions:
     paths:
       - pkg/database/migrations.go

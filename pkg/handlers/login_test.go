@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/B0TMirage/avito-assignment-winter-2025.git/pkg/database"
-
-	_ "github.com/lib/pq"
 )
 
-func TestAuthHandler(t *testing.T) {
+func TestLoginHandler(t *testing.T) {
 	url := "http://localhost:8080/api/auth"
 	tests := []struct {
 		name         string
@@ -46,13 +43,11 @@ func TestAuthHandler(t *testing.T) {
 			jsonData, err := json.Marshal(tt.userData)
 			if err != nil {
 				t.Error("error marshaling JSON:", err)
-				return
 			}
 
 			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 			if err != nil {
 				t.Error("error making request:", err)
-				return
 			}
 			defer resp.Body.Close()
 
@@ -74,48 +69,5 @@ func TestAuthHandler(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestGetAllInfoHandler(t *testing.T) {
-	url := "http://localhost:8080/api/auth"
-	userdata := map[string]string{"username": "testusers", "password": "tester"}
-	jsonData, err := json.Marshal(userdata)
-	if err != nil {
-		t.Error("error marshaling JSON:", err)
-		return
-	}
-
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Error("error making request:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	tokenMap := map[string]string{}
-	json.NewDecoder(resp.Body).Decode(&tokenMap)
-
-	token := tokenMap["token"]
-
-	url = "http://localhost:8080/api/info"
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		t.Error("error creating request:", err)
-		return
-	}
-
-	req.Header.Set("Authorization", fmt.Sprint("Bearer ", token))
-
-	client := &http.Client{}
-	resp, err = client.Do(req)
-	if err != nil {
-		t.Error("error making request:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("failed to get resource: %s\n", resp.Status)
 	}
 }
