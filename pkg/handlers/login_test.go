@@ -40,12 +40,12 @@ func TestLoginHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jsonData, err := json.Marshal(tt.userData)
+			reqData, err := json.Marshal(tt.userData)
 			if err != nil {
 				t.Error("error marshaling JSON:", err)
 			}
 
-			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqData))
 			if err != nil {
 				t.Error("error making request:", err)
 			}

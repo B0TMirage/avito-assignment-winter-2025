@@ -14,10 +14,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var localDBURL string = "postgres://avito:passvito@127.0.0.1:5432/avito-merch-db?sslmode=disable"
+var localDBURL string = "your database connection link"
 
 func TestBuyHandler(t *testing.T) {
-	token, err := authUser()
+	token, err := authTestUser()
 	if err != nil {
 		t.Fatal("error auth user: ", err)
 	}
@@ -81,7 +81,7 @@ func TestBuyHandler(t *testing.T) {
 }
 
 func TestBuyHandlerNoMoney(t *testing.T) {
-	token, err := authUser()
+	token, err := authTestUser()
 	if err != nil {
 		t.Fatal("error auth user: ", err)
 	}
@@ -90,10 +90,8 @@ func TestBuyHandlerNoMoney(t *testing.T) {
 	database.Connect()
 	defer database.DB.Close()
 
-	// получаем id, задаём пользователю 0 монет
-	var id int
-	database.DB.QueryRow(`SELECT id FROM users WHERE username=$1`, "testuser").Scan(&id)
-	database.DB.Exec(`UPDATE users SET coins = 0 WHERE id=$1`, id)
+	// задаём пользователю 0 монет
+	database.DB.Exec(`UPDATE users SET coins = 0 WHERE username=$1`, "testuser")
 
 	client := &http.Client{}
 
@@ -118,7 +116,7 @@ func TestBuyHandlerNoMoney(t *testing.T) {
 }
 
 func TestBuyHandlerInvalidItem(t *testing.T) {
-	token, err := authUser()
+	token, err := authTestUser()
 	if err != nil {
 		t.Fatal("error auth user: ", err)
 	}
@@ -127,10 +125,8 @@ func TestBuyHandlerInvalidItem(t *testing.T) {
 	database.Connect()
 	defer database.DB.Close()
 
-	// получаем id, задаём пользователю 0 монет
-	var id int
-	database.DB.QueryRow(`SELECT id FROM users WHERE username=$1`, "testuser").Scan(&id)
-	database.DB.Exec(`UPDATE users SET coins = 0 WHERE id=$1`, id)
+	// задаём пользователю не 0 монет, чтобы исключить BadRequest по деньгам
+	database.DB.Exec(`UPDATE users SET coins = 500 WHERE username=$1`, "testuser")
 
 	client := &http.Client{}
 
@@ -154,14 +150,14 @@ func TestBuyHandlerInvalidItem(t *testing.T) {
 	}
 }
 
-func authUser() (token string, err error) {
+func authTestUser() (token string, err error) {
 	url := "http://localhost:8080/api/auth"
-	userData, err := json.Marshal(map[string]string{"username": "testuser", "password": "tester"})
+	reqData, err := json.Marshal(map[string]string{"username": "testuser", "password": "tester"})
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(userData))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqData))
 	if err != nil {
 		return "", err
 	}
