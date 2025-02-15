@@ -55,3 +55,9 @@ git clone https://github.com/B0TMirage/avito-assignment-winter-2025.git
 ```sh
 docker compose up -d --build
 ```
+
+## **Результаты нагрузочного тестирования**
+
+Более подробные результаты находятся в папке [forReadme.](/forReadme/load_testing.html)
+
+![Load testing](forReadme/load_testing.png)
