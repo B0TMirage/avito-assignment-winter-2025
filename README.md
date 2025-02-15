@@ -50,7 +50,17 @@
 git clone https://github.com/B0TMirage/avito-assignment-winter-2025.git
 ```
 
-2. Запустить докер композе:
+2. Создать в директории проекта .env файл и внести следующие данные:
+```
+secret_token = your_token
+POSTGRES_DB = data_base
+POSTGRES_CONTAINER_NAME = avito_db_container
+POSTGRES_USER = avito_user
+POSTGRES_PASSWORD = avito_password
+POSTGRES_URL= postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_CONTAINER_NAME}:5432/${POSTGRES_DB}?sslmode=disable
+```
+
+3. Запустить докер композе:
 
 ```sh
 docker compose up -d --build
